@@ -1,10 +1,6 @@
-from pathlib import Path
-
-SERVICE_NAME = 'RecipeGmailSender'
-
-APP_DIR = Path.home() / ".gmail_sender"
-
-SETTINGS_FILE_PATH = APP_DIR / "settings.json"
+FULL_SERVICE_NAME = 'RecipeGmailSender'
+SHORT_SERVICE_NAME = 'RGS'
+APP_VERSION = "2.0"
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465

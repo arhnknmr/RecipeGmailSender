@@ -3,7 +3,6 @@ from PySide6 import (
     QtWidgets,
 )
 from PySide6.QtGui import (
-    QIcon,
     Qt
 )
 from PySide6.QtWidgets import (
@@ -16,10 +15,12 @@ from PySide6.QtWidgets import (
 from app.validators import authentication_validation
 from pydantic import ValidationError
 
-from app.helper_functions import resource_path
+from app.helper_functions import setup_ui_defaults
 from app.helper_functions import show_validation_errors
-from app.controllers import authentication_request
-from app.config import SERVICE_NAME
+from app.helper_functions import setup_window_size
+
+from app.controllers import account_request
+
 
 class AuthWidget(QtWidgets.QWidget):
     def __init__(self):
@@ -32,11 +33,9 @@ class AuthWidget(QtWidgets.QWidget):
     #Methods :
 
     def define_ui(self):
+        
+        setup_ui_defaults(self)
 
-        self.setWindowTitle(SERVICE_NAME)
-        self.setWindowIcon(QIcon(resource_path("assets/images/app-icon.svg")))
-
-        self.heading_text = QLabel('Use your (Gmail) to Login',alignment=QtCore.Qt.AlignCenter)
         self.helper_link = QLabel('<a href="https://myaccount.google.com/apppasswords">Create an App password for your Gmail account to login</a>',alignment=QtCore.Qt.AlignCenter)
         self.helper_link.setOpenExternalLinks(True)
 
@@ -66,6 +65,8 @@ class AuthWidget(QtWidgets.QWidget):
 
         self.setLayout(layout)
 
+        setup_window_size(self,400)
+        
     def setup_connections(self):
         self.login_btn.clicked.connect(self.setup_validation)
 
@@ -83,7 +84,7 @@ class AuthWidget(QtWidgets.QWidget):
         self.setup_request(data)
 
     def setup_request(self,data):
-        request = authentication_request(
+        request = account_request(
             gmail_address=data.gmail_address,
             app_password=data.app_password
         )

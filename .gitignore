@@ -27,6 +27,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+credentials.json
+token.json
 
 # Logs
 *.log

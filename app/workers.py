@@ -17,6 +17,7 @@ class EmailWorker(QtCore.QObject):
 
         try:
             for result in email_pushing_request(
+                self.data.email_schedule,
                 self.data.email_subject,
                 self.data.email_content,
                 self.data.email_html,

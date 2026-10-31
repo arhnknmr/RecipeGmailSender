@@ -3,7 +3,6 @@ from PySide6 import (
     QtWidgets,
 )
 from PySide6.QtGui import (
-    QIcon,
     QColor
 )
 from PySide6.QtWidgets import (
@@ -12,8 +11,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
 )
 
-from app.helper_functions import resource_path
-from app.config import SERVICE_NAME
+from app.helper_functions import setup_ui_defaults
+
 
 class ProcessWidget(QtWidgets.QWidget):
     def __init__(self):
@@ -34,10 +33,9 @@ class ProcessWidget(QtWidgets.QWidget):
 
     def define_ui(self):
 
-        self.setWindowTitle(SERVICE_NAME)
-        self.setWindowIcon(QIcon(resource_path("assets/images/app-icon.svg")))
+        setup_ui_defaults(self)
 
-        self.heading_text = QLabel('GmailSenderApp',alignment=QtCore.Qt.AlignCenter)
+
         self.helper_text = QLabel('App is in process keep it open !',alignment=QtCore.Qt.AlignCenter)
 
         self.info_section = QVBoxLayout()

@@ -1,27 +1,32 @@
 import sys
-from PySide6 import QtCore, QtWidgets, QtGui
 
+from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QApplication
+
+from app.config import SHORT_SERVICE_NAME, APP_VERSION
+
+
+app = QApplication([])
+
+QCoreApplication.setApplicationName(SHORT_SERVICE_NAME)
+QCoreApplication.setApplicationVersion(APP_VERSION)
+
+
+from app.storage import initialize_storage
+
+initialize_storage()
+
+
+from app.controllers import account_request
 from ui.authentication_view import AuthWidget
 from ui.panel_view import PanelWidget
-from app.auth import is_authenticated
 
-if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
 
-    if is_authenticated():
-        widget = PanelWidget()
-    else:
-        widget = AuthWidget()
+if account_request()["success"]:
+    widget = PanelWidget()
+else:
+    widget = AuthWidget()
 
-    widget.setMinimumSize(450,300)
+widget.show()
 
-    screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
-
-    widget.move(
-        screen.center().x() - widget.width() // 2,
-        screen.top() +15
-    )
-
-    widget.show()
-
-    sys.exit(app.exec())
+sys.exit(app.exec())

@@ -1,29 +1,25 @@
 import keyring
-import json
 
-from app.config import (SERVICE_NAME,SETTINGS_FILE_PATH)
+from app.config import SHORT_SERVICE_NAME
 
 
-def is_authenticated():
+def save_app_password(gmail_address, app_password):
+    keyring.set_password(
+        SHORT_SERVICE_NAME,
+        gmail_address,
+        app_password
+    )
 
-    if not SETTINGS_FILE_PATH.exists():
-        return False
 
-    with open(SETTINGS_FILE_PATH, "r", encoding="utf-8") as f:
-        gmail_address = json.load(f).get("gmail_address")
-
-    if not gmail_address:
-        return False
-
-    app_password = keyring.get_password(
-        SERVICE_NAME,
+def get_app_password(gmail_address):
+    return keyring.get_password(
+        SHORT_SERVICE_NAME,
         gmail_address
     )
 
-    if app_password is None:
-        return False
 
-    return {
-        'gmail_address' : gmail_address,
-        'app_password' : app_password
-    }
+def delete_app_password(gmail_address):
+    keyring.delete_password(
+        SHORT_SERVICE_NAME,
+        gmail_address
+    )

@@ -4,24 +4,61 @@ import json
 import re
 import time
 import mimetypes
+import shutil
 from email.message import EmailMessage
 from pathlib import Path
 
 from app.config import (
-    SERVICE_NAME,
-    APP_DIR,
-    SETTINGS_FILE_PATH,
     SMTP_HOST,
     SMTP_PORT
 )
 
-from app.auth import is_authenticated
+from app.auth import (save_app_password,delete_app_password,get_app_password)
+from app.storage import (DATA_FILE_PATH,SESSION_FILE_PATH,FILE_FOLDER_PATH)
+
 from app.helper_functions import replace_recipe_variables
+from app.helper_functions import load_data_file
 
 
-def authentication_request(gmail_address, app_password):
+def account_request(gmail_address=None,app_password=None):
+    if gmail_address is None and app_password is None:
+        try:
+            with open(SESSION_FILE_PATH,"r",encoding="utf-8") as file:
+                settings = json.load(file)
+
+            gmail_address = settings.get("gmail_address")
+
+            if not gmail_address:
+                return {
+                    "success": False,
+                    "message": "No authenticated account found."
+                }
+
+            app_password = get_app_password(gmail_address)
+
+            if not app_password:
+                return {
+                    "success": False,
+                    "message": "Account credentials not found."
+                }
+
+            return {
+                "success": True,
+                "gmail_address": gmail_address,
+                "app_password": app_password
+            }
+
+        except (OSError, json.JSONDecodeError) as error:
+            return {
+                "success": False,
+                "message": str(error)
+            }
+
     try:
-        server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
+        server = smtplib.SMTP_SSL(
+            SMTP_HOST,
+            SMTP_PORT
+        )
 
         server.login(
             gmail_address,
@@ -42,23 +79,29 @@ def authentication_request(gmail_address, app_password):
             "message": str(error)
         }
 
-    APP_DIR.mkdir(exist_ok=True)
+    with open(SESSION_FILE_PATH,"r",encoding="utf-8") as file:
+        settings = json.load(file)
 
-    settings = {
-        "authenticated": True,
-        "gmail_address": gmail_address
-    }
+    settings["gmail_address"] = gmail_address
 
-    with open(SETTINGS_FILE_PATH, "w", encoding="utf-8") as file:
-        json.dump(settings, file, indent=4)
+    with open(
+        SESSION_FILE_PATH,
+        "w",
+        encoding="utf-8"
+    ) as file:
+        json.dump(
+            settings,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
 
-    keyring.set_password(
-        SERVICE_NAME,
+    # ذخیره App Password
+    save_app_password(
         gmail_address,
         app_password
     )
 
-    
     return {
         "success": True,
         "message": "Account connected successfully."
@@ -66,29 +109,24 @@ def authentication_request(gmail_address, app_password):
 
 
 def logout_request():
-    if not SETTINGS_FILE_PATH.exists():
-        return {
-            "success": False,
-            "message": "No authenticated account found."
-        }
-
     try:
-        with open(
-            SETTINGS_FILE_PATH,
-            "r",
-            encoding="utf-8"
-        ) as file:
+        with open(SESSION_FILE_PATH, "r", encoding="utf-8") as file:
             settings = json.load(file)
 
         gmail_address = settings.get("gmail_address")
 
         if gmail_address:
-            keyring.delete_password(
-                SERVICE_NAME,
-                gmail_address
-            )
+            delete_app_password(gmail_address)
 
-        SETTINGS_FILE_PATH.unlink()
+        del settings["gmail_address"]
+
+        with open(SESSION_FILE_PATH, "w", encoding="utf-8") as file:
+            json.dump(
+                settings,
+                file,
+                ensure_ascii=False,
+                indent=4
+            )
 
         return {
             "success": True,
@@ -108,15 +146,257 @@ def logout_request():
         }
 
 
-def email_pushing_request(subject, content, html, file, recipes):
+def get_saved_contents():
 
-    data = is_authenticated()
+    data = load_data_file()
 
-    if not data:
+    return data.get("contents")
+
+
+def get_saved_contacts():
+    
+    data = load_data_file()
+
+    return data.get("contacts")
+
+
+def get_saved_files():
+    
+    data = load_data_file()
+
+    return data.get("files")
+
+
+def get_saved_receivers():
+    
+    data = load_data_file()
+
+    return data.get("receivers")
+
+
+def get_saved_drafts():
+
+    data = load_data_file()
+
+    return data.get("drafts")
+
+
+def save_content_request(content_name, email_content):
+
+    saved_data =load_data_file()
+
+    saved_data.setdefault("contents", {})
+
+    saved_data["contents"][content_name] = email_content
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def delete_content_request(content_name):
+
+    saved_data = load_data_file()
+
+    contents = saved_data.setdefault("contents", {})
+
+    del contents[content_name]
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def save_contact_request(contact_name, email_contact):
+
+    saved_data = load_data_file()
+
+    saved_data.setdefault("contacts", {})
+
+    saved_data["contacts"][contact_name] = email_contact
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def delete_contact_request(contact_name):
+
+    saved_data = load_data_file()
+
+    contacts = saved_data.setdefault("contacts", {})
+
+    del contacts[contact_name]
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+        
+def save_file_request(file_name, email_file):
+
+    saved_data = load_data_file()
+
+    saved_data.setdefault("files", {})
+
+    email_file = Path(email_file)
+
+    FILE_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
+
+    destination = FILE_FOLDER_PATH / email_file.name
+
+    shutil.copy2(email_file, destination)
+
+    saved_data["files"][file_name] = str(email_file.name)
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def delete_file_request(file_name):
+
+    saved_data = load_data_file()
+
+    files = saved_data.setdefault("files", {})
+   
+    Path(FILE_FOLDER_PATH/files.get(file_name)).unlink()
+
+    del files[file_name]
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def save_receiver_request(email_receiver):
+
+    saved_data = load_data_file()
+
+    receivers = saved_data.setdefault("receivers", [])
+
+    if email_receiver not in receivers:
+        receivers.append(email_receiver)
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def delete_receiver_request(email_receiver):
+
+    saved_data = load_data_file()
+
+    receivers = saved_data.setdefault("receivers", [])
+
+    if email_receiver == "*":
+        receivers.clear()
+    else:
+        receivers.remove(email_receiver)
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def save_draft_request(data):
+    saved_data = load_data_file()
+    
+    saved_data.setdefault("drafts", {})
+
+    saved_data["drafts"][data.pop("email_subject")] = data
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def delete_draft_request(email_subject):
+    saved_data = load_data_file()
+    
+    drafts = saved_data.setdefault("drafts", {})
+
+    if email_subject == "*":
+            drafts.clear()
+    else:
+        del drafts[email_subject]
+
+    with open(DATA_FILE_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            saved_data,
+            file,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def email_pushing_request(schedule, subject, content, html, file, recipes):
+
+    try:
+        with open(SESSION_FILE_PATH,"r",encoding="utf-8") as session_file:
+            settings = json.load(session_file)
+
+        gmail_address = settings.get("gmail_address")
+
+        if not gmail_address:
+            yield {
+                "type": "error",
+                "success": False,
+                "message": "No Gmail account is authenticated."
+            }
+            return
+
+        app_password = get_app_password(gmail_address)
+
+        if not app_password:
+            yield {
+                "type": "error",
+                "success": False,
+                "message": "Failed to get account credentials."
+            }
+            return
+
+    except (OSError, json.JSONDecodeError) as error:
         yield {
             "type": "error",
             "success": False,
-            "message": "Auth checking failed."
+            "message": str(error)
         }
         return
 
@@ -129,8 +409,8 @@ def email_pushing_request(subject, content, html, file, recipes):
         )
 
         server.login(
-            data["gmail_address"],
-            data["app_password"]
+            gmail_address,
+            app_password
         )
 
         if file:
@@ -153,7 +433,7 @@ def email_pushing_request(subject, content, html, file, recipes):
 
             email_message = EmailMessage()
 
-            email_message["From"] = data["gmail_address"]
+            email_message["From"] = gmail_address
             email_message["To"] = email_receiver
             email_message["Subject"] = subject
 
@@ -187,10 +467,15 @@ def email_pushing_request(subject, content, html, file, recipes):
 
             try:
                 server.send_message(email_message)
+
                 success = True
                 message = "Email sent successfully."
 
             except smtplib.SMTPException as error:
+                success = False
+                message = str(error)
+
+            except Exception as error:
                 success = False
                 message = str(error)
 
@@ -218,6 +503,16 @@ def email_pushing_request(subject, content, html, file, recipes):
             "message": str(error)
         }
 
+    except Exception as error:
+        yield {
+            "type": "error",
+            "success": False,
+            "message": str(error)
+        }
+
     finally:
         if server:
-            server.quit()
+            try:
+                server.quit()
+            except Exception:
+                pass
